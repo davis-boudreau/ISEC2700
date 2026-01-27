@@ -10,7 +10,7 @@
 | **Workshop Title** | Secure Remote Access Using VPN Technologies                    |
 | **Type**           | Hands-On Workshop                                              |
 | **Delivery Mode**  | In-Class / Guided Lab                                          |
-| **Estimated Time** | 2.5–3 hours                                                    |
+| **Estimated Time** | 1 hour hours                                                    |
 | **Weighting**      | Assessment – Practice & Learning Activity (Not Graded)         |
 | **Prerequisites**  | Basic networking concepts, TCP/IP, authentication fundamentals |
 | **Tools Required** | FortiClient VPN (latest version), Internet access              |
