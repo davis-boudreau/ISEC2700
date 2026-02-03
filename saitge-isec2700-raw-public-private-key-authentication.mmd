@@ -1,0 +1,18 @@
+sequenceDiagram
+    autonumber
+    participant A as Client (Alice)
+    participant B as Server (Bob)
+
+    Note over B: Bob already has a key pair (private + public key)
+
+    A->>B: Connect request
+    B-->>A: Sends public key
+
+    A->>A: Manually verify key (fingerprint, out-of-band, or TOFU)
+    alt Key trusted
+        A->>B: Encrypt / sign data using Bob's public key
+        B-->>A: Verify signature / decrypt using Bob's private key
+        Note over A,B: Secure communication with verified key
+    else Key not trusted
+        A-->>B: Abort connection
+    end

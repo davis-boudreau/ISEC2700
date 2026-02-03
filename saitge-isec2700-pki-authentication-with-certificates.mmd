@@ -1,0 +1,34 @@
+sequenceDiagram
+    autonumber
+    participant E as Entity (Server/User)
+    participant CA as Certificate Authority
+    participant C as Client (Relying Party)
+    participant TS as Trust Store (Root CAs)
+    participant OCSP as OCSP/CRL Service
+
+    Note over E: Entity generates key pair (private key never leaves)
+
+    E->>CA: Submit CSR public key + identity info)
+    CA->>CA: Validate identity (policy checks)
+    CA-->>E: Issue signed certificate(bind identity to public key)
+
+    Note over C: Client has CA root in trust store
+
+    C->>E: Connect request
+    E-->>C: Send certificate + chain
+
+    C->>TS: Verify CA signature(build chain to trusted root)
+    TS-->>C: Root trusted
+
+    opt Revocation check
+        C->>OCSP: Check certificate status
+        OCSP-->>C: Good / Revoked
+    end
+
+    alt Certificate valid
+        C->>E: Encrypt / verify using certified public key
+        E-->>C: Prove possession of private key
+        Note over C,E: Secure communication with verified identity
+    else Invalid
+        C-->>E: Abort connection
+    end
