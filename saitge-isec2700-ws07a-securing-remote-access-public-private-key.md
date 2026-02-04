@@ -1,4 +1,4 @@
-# **Workshop 07 — Secure DevOps Access with PKI, TLS, and SSH**
+# **Workshop 07a — Secure DevOps Access with PKI, TLS, and SSH**
 
 ## Assignment Details
 
