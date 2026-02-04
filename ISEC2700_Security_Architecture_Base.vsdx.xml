@@ -1,102 +1,93 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bs:Brainstorm xmlns:bs="http://schemas.microsoft.com/visio/2003/brainstorming">
+<bs:Brainstorm
+  xmlns:bs="http://schemas.microsoft.com/visio/2003/brainstorming"
+  xml:space="preserve">
 
-  <!-- Main Architecture -->
-  <bs:topic bs:TopicID="T1">
+  <bs:topic bs:topicID="T1">
     <bs:text>Small Business Security Architecture</bs:text>
 
-    <!-- Internet / Threat Landscape -->
-    <bs:topic bs:TopicID="T1.1">
+    <bs:topic bs:topicID="T1.1">
       <bs:text>Internet / Threat Landscape</bs:text>
     </bs:topic>
 
-    <!-- Perimeter -->
-    <bs:topic bs:TopicID="T1.2">
+    <bs:topic bs:topicID="T1.2">
       <bs:text>Perimeter Security</bs:text>
-      <bs:topic bs:TopicID="T1.2.1">
+      <bs:topic bs:topicID="T1.2.1">
         <bs:text>External Firewall</bs:text>
       </bs:topic>
     </bs:topic>
 
-    <!-- DMZ -->
-    <bs:topic bs:TopicID="T1.3">
+    <bs:topic bs:topicID="T1.3">
       <bs:text>DMZ</bs:text>
-      <bs:topic bs:TopicID="T1.3.1">
+      <bs:topic bs:topicID="T1.3.1">
         <bs:text>Reverse Proxy / Web Gateway</bs:text>
       </bs:topic>
     </bs:topic>
 
-    <!-- Internal Network -->
-    <bs:topic bs:TopicID="T1.4">
+    <bs:topic bs:topicID="T1.4">
       <bs:text>Internal Network</bs:text>
-      <bs:topic bs:TopicID="T1.4.1">
+      <bs:topic bs:topicID="T1.4.1">
         <bs:text>Core Layer 3 Switch</bs:text>
       </bs:topic>
     </bs:topic>
 
-    <!-- Compute -->
-    <bs:topic bs:TopicID="T1.5">
+    <bs:topic bs:topicID="T1.5">
       <bs:text>Compute Layer</bs:text>
-      <bs:topic bs:TopicID="T1.5.1">
+      <bs:topic bs:topicID="T1.5.1">
         <bs:text>Kubernetes Cluster</bs:text>
       </bs:topic>
-      <bs:topic bs:TopicID="T1.5.2">
+      <bs:topic bs:topicID="T1.5.2">
         <bs:text>Application Servers</bs:text>
       </bs:topic>
     </bs:topic>
 
-    <!-- Data -->
-    <bs:topic bs:TopicID="T1.6">
+    <bs:topic bs:topicID="T1.6">
       <bs:text>Data Layer</bs:text>
-      <bs:topic bs:TopicID="T1.6.1">
+      <bs:topic bs:topicID="T1.6.1">
         <bs:text>Databases</bs:text>
       </bs:topic>
-      <bs:topic bs:TopicID="T1.6.2">
+      <bs:topic bs:topicID="T1.6.2">
         <bs:text>Backups / Storage</bs:text>
       </bs:topic>
     </bs:topic>
 
-    <!-- Identity -->
-    <bs:topic bs:TopicID="T1.7">
-      <bs:text>Identity & Access Management (IAM)</bs:text>
-      <bs:topic bs:TopicID="T1.7.1">
+    <bs:topic bs:topicID="T1.7">
+      <bs:text>Identity &amp; Access Management (IAM)</bs:text>
+      <bs:topic bs:topicID="T1.7.1">
         <bs:text>Authentication Services</bs:text>
       </bs:topic>
-      <bs:topic bs:TopicID="T1.7.2">
+      <bs:topic bs:topicID="T1.7.2">
         <bs:text>Authorization / RBAC</bs:text>
       </bs:topic>
     </bs:topic>
 
-    <!-- Endpoints -->
-    <bs:topic bs:TopicID="T1.8">
+    <bs:topic bs:topicID="T1.8">
       <bs:text>Endpoints</bs:text>
-      <bs:topic bs:TopicID="T1.8.1">
+      <bs:topic bs:topicID="T1.8.1">
         <bs:text>User Workstations</bs:text>
       </bs:topic>
-      <bs:topic bs:TopicID="T1.8.2">
+      <bs:topic bs:topicID="T1.8.2">
         <bs:text>Administrator Systems</bs:text>
       </bs:topic>
     </bs:topic>
 
-    <!-- Detection -->
-    <bs:topic bs:TopicID="T1.9">
+    <bs:topic bs:topicID="T1.9">
       <bs:text>Detection</bs:text>
-      <bs:topic bs:TopicID="T1.9.1">
+      <bs:topic bs:topicID="T1.9.1">
         <bs:text>Logging</bs:text>
       </bs:topic>
-      <bs:topic bs:TopicID="T1.9.2">
+      <bs:topic bs:topicID="T1.9.2">
         <bs:text>Monitoring / IDS</bs:text>
       </bs:topic>
     </bs:topic>
 
-    <!-- Response -->
-    <bs:topic bs:TopicID="T1.10">
+    <bs:topic bs:topicID="T1.10">
       <bs:text>Response</bs:text>
-      <bs:topic bs:TopicID="T1.10.1">
+      <bs:topic bs:topicID="T1.10.1">
         <bs:text>Incident Response Procedures</bs:text>
       </bs:topic>
-      <bs:topic bs:TopicID="T1.10.2">
-        <bs:text>Recovery & Continuity</bs:text>
+      <bs:topic bs:topicID="T1.10.2">
+        <bs:text>Recovery &amp; Continuity</bs:text>
       </bs:topic>
     </bs:topic>
 
