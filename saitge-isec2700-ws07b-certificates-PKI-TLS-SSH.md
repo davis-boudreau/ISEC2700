@@ -1,142 +1,131 @@
 # Workshop 07b — **Certificates, PKI, TLS, and SSH in a GNS3 Lab**
 
-**Theme:** *Trust, Identity, and Secure Connections (Windows + Ubuntu Clients → Ubuntu Server)*  
-**Platforms:** GNS3, Windows 11 Client, Ubuntu Desktop Client, Ubuntu Server (services)  
-**Instructor Role:** Provide GNS3 topology diagram + distribute hostnames/IP plan (below)  
-**Student Role:** Build trust correctly (not “click through warnings”), demonstrate TLS and SSH security, and explain tradeoffs.
+**Theme:** *Trust, Identity, and Secure Connections (Windows + Ubuntu Clients → Ubuntu Server)*
+**Platforms:** GNS3, Windows 11 Client, Ubuntu Desktop Client, Ubuntu Server (services)
+**Student Goal:** Build trust correctly (not “click through warnings”), demonstrate TLS and SSH security, and explain tradeoffs.
 
-***
+---
 
-## 0) The SAITGE Story (Case Study Context)
+## 1) Where this fits in the Security Architecture Model
 
-You are a junior member of the **Strait Area Campus Information Technology Generalist (SAITGE) DevOps team**. Your lab is being expanded to support secure internal services used in networking and DevOps training. The team’s security goal is to move from “it works” to “it’s verifiably trusted.”
+This workshop reinforces these architecture areas:
 
-In this workshop, you will simulate a real SAITGE requirement:
+* **Identity & Access Management (IAM):** who is trusted and why
+* **Network Security:** secure transport (TLS/SSH)
+* **Application Security:** service configuration (Nginx TLS)
+* **Data Security:** protection of data in transit
+* **Detection/Response (preview):** what evidence proves trust (handshake success, warnings removed)
 
-1.  **Ubuntu Server** hosts an internal web service (Nginx) over **HTTPS (TLS)**.
-2.  **Windows 11** and **Ubuntu Desktop** clients must connect without certificate warnings by correctly installing trust in each OS certificate store.
-3.  Students also configure **SSH key authentication** to the Ubuntu server and relate it to public-key trust models.
+**Primary Learning Outcome:** **LO3** (implement controls)
+**Supports:** LO1 (identify issues like “untrusted cert”), LO2 (assess risk of weak trust)
 
-You will learn how **PKI + TLS certificates** relate to **SSH keys**, and why “self-signed” is different from “CA-signed.”
+---
 
-***
+## 2) The SAITGE Story (Case Study Context)
 
-# 1) Comprehensive Overview: Certificates, PKI, TLS, and SSH
+You are a junior member of the **SAITGE DevOps team**. Your lab is being expanded to support internal services used in networking and DevOps training. The goal is to move from:
 
-## 1.1 What a certificate *is* (and what it is not)
+> “It works” → “It’s verifiably trusted.”
 
-A **TLS certificate** is an identity document that binds a **public key** to an identity (hostname/service/org). It is used to authenticate and encrypt traffic in TLS connections. [\[geeksforgeeks.org\]](https://www.geeksforgeeks.org/devops/how-to-install-an-ssl-certificate-on-azure/), [\[gist.github.com\]](https://gist.github.com/KeithYeh/bb07cadd23645a6a62509b1ec8986bbc)
+In this workshop you simulate a real SAITGE requirement:
 
-A certificate **is not** encryption by itself. Encryption happens during the **TLS handshake**, which uses certificates + keys to negotiate session encryption.
+1. Ubuntu Server hosts an internal web service (Nginx) over **HTTPS (TLS)**.
+2. Windows 11 and Ubuntu Desktop clients must connect **without certificate warnings** by correctly installing trust into each OS trust store.
+3. Students configure **SSH key authentication** and compare SSH trust to PKI trust.
 
-***
+---
 
-## 1.2 PKI (Public Key Infrastructure) in one picture
+# 3) Background Knowledge (Short, High-Value Concepts)
 
-PKI is the *system of trust* that makes certificates meaningful.
+## 3.1 What a certificate *is* (and what it is not)
 
-*   **Root CA** (trusted anchor) → signs **Intermediate CA(s)** → signs **Server certificates**.
-*   Clients trust the Root CA, and that trust extends down the chain. [\[geeksforgeeks.org\]](https://www.geeksforgeeks.org/devops/how-to-install-an-ssl-certificate-on-azure/), [\[edvaldogui...aes.com.br\]](https://edvaldoguimaraes.com.br/2024/11/25/using-ssh-with-azure-devops-a-step-by-step-guide/)
+A **TLS certificate** binds a **public key** to an identity (hostname/service). It helps a client verify it connected to the right server, then TLS encrypts the traffic. A certificate itself is not “the encryption” — encryption occurs after negotiation in the TLS handshake.
 
-### Why this matters
+### Key point students must remember
 
-If your server certificate is signed by a **CA** already trusted by the client OS/browser, your HTTPS connection is trusted automatically. With **self-signed**, it’s not.
+✅ **TLS trust is about “server identity validation.”**
+✅ **Encryption is the result of a successful handshake.**
 
-***
+---
 
-## 1.3 TLS (Transport Layer Security): what it guarantees
+## 3.2 PKI in one picture (the trust chain)
 
-TLS provides:
+PKI is the trust system behind certificates:
 
-*   **Confidentiality**: encrypts traffic
-*   **Integrity**: detects tampering
-*   **Authentication**: validates server identity via certificates [\[gist.github.com\]](https://gist.github.com/KeithYeh/bb07cadd23645a6a62509b1ec8986bbc), [\[betanet.net\]](https://betanet.net/view-post/azure-devops-ssh-configuration-6497)
+* **Root CA** (trusted anchor) → signs **Intermediate CA(s)** → sign **Server certificates**
+* Clients trust the **root**, and trust extends down the chain.
 
-Microsoft specifically notes that successful TLS handshake validation is essential for clients/agents, and that clients must trust the server certificate using the OS certificate store to avoid security errors. [\[betanet.net\]](https://betanet.net/view-post/azure-devops-ssh-configuration-6497)
+In this lab, you are doing a simplified version:
 
-***
+* You create a certificate on the server
+* You manually install trust on clients (like a small internal enterprise)
 
-## 1.4 SSH: how it’s related (and how it differs)
+---
 
-SSH also uses public key cryptography, but the trust model is different:
+## 3.3 Why hostname identity (SAN) matters
 
-*   **TLS/PKI trust** is usually built by **trusted CAs** and certificate chains.
-*   **SSH trust** is often:
-    *   **Host trust** via `known_hosts` (first-seen trust / TOFU)
-    *   **User authentication** via public keys stored in `authorized_keys`
+Modern clients validate certificate identity using **Subject Alternative Name (SAN)**. If the hostname you type isn’t in the certificate SAN list, clients treat it as “wrong server,” even if encryption is possible.
 
-This workshop uses SSH as a comparison point: keys prove identity without being transmitted, and trust is established by installing public keys (similar principle to trusting a CA certificate). [\[edvaldogui...aes.com.br\]](https://edvaldoguimaraes.com.br/2024/11/25/using-ssh-with-azure-devops-a-step-by-step-guide/), [\[betanet.net\]](https://betanet.net/view-post/azure-devops-ssh-configuration-6497)
+**Rule:**
 
-***
+> The URL hostname must match the certificate SAN.
 
-## 1.5 CA-signed vs Self-signed vs “Local CA” (Use cases students must know)
+This is the most common reason students see warnings even after “installing the cert.”
 
-### A) **Public CA-signed certificates** (e.g., DigiCert, Let’s Encrypt)
+---
 
-**Use when:** Public-facing services, production systems, broad users.  
-**Benefit:** Users already trust the CA; no manual trust deployment required.  
-**Why:** Trust is anchored in client OS/browser CA stores. [\[geeksforgeeks.org\]](https://www.geeksforgeeks.org/devops/how-to-install-an-ssl-certificate-on-azure/), [\[gist.github.com\]](https://gist.github.com/KeithYeh/bb07cadd23645a6a62509b1ec8986bbc)
+## 3.4 Certificate stores (what “trust” really means)
 
-### B) **Self-signed certificates**
+A certificate is trusted only if the **issuer** is trusted by the OS/application.
 
-**Use when:** labs, isolated/internal testing, short-lived dev setups.  
-**Benefit:** Fast and free.  
-**Cost:** Every client must be manually configured to trust it (or warnings/errors). [\[geeksforgeeks.org\]](https://www.geeksforgeeks.org/devops/how-to-install-an-ssl-certificate-on-azure/), [\[edvaldogui...aes.com.br\]](https://edvaldoguimaraes.com.br/2024/11/25/using-ssh-with-azure-devops-a-step-by-step-guide/)
+* **Ubuntu**: add CA certs under `/usr/local/share/ca-certificates/` then run `update-ca-certificates` ([documentation.ubuntu.com][1])
+* **Windows**: install into **Trusted Root Certification Authorities** (Local Machine) using MMC/Certificate Import Wizard ([Microsoft Learn][2])
 
-### C) **Local CA (Internal CA) — “enterprise PKI”**
+---
 
-**Use when:** Internal services at scale (campus systems), where you control clients.  
-**Benefit:** You install the internal CA once, then issue many server certs that all clients trust. Ubuntu explicitly describes installing a local CA cert into the trust store for enterprise environments. [\[edvaldogui...aes.com.br\]](https://edvaldoguimaraes.com.br/2024/11/25/using-ssh-with-azure-devops-a-step-by-step-guide/)
+## 3.5 TLS vs SSH (related math, different trust)
 
-> **Critical thinking hook:** Self-signed is okay for *one* service. Internal CA becomes essential when you have *many* services.
+Both use public key cryptography, but trust differs:
 
-***
+* **TLS/PKI**: clients trust a CA chain (or you install a trusted root manually)
+* **SSH**:
 
-## 1.6 The certificate store (why it matters)
+  * Host trust via `known_hosts` (first-seen trust / TOFU)
+  * User authentication via public keys in `authorized_keys`
 
-A certificate is trusted only if the OS/application trusts the issuer.
+---
 
-*   On **Ubuntu**, adding a CA cert to the trust store involves placing a `.crt` in `/usr/local/share/ca-certificates/` then running `update-ca-certificates`. [\[edvaldogui...aes.com.br\]](https://edvaldoguimaraes.com.br/2024/11/25/using-ssh-with-azure-devops-a-step-by-step-guide/)
-*   On **Windows**, trust is managed in certificate stores (e.g., “Trusted Root Certification Authorities”). Microsoft emphasizes that agents and clients must trust the certificate in the OS store to avoid TLS validation errors. [\[betanet.net\]](https://betanet.net/view-post/azure-devops-ssh-configuration-6497)
+# 4) Lab Environment — Topology & IP Plan
 
-***
+## 4.1 Instructor-provided topology diagram
 
-# 2) Lab Environment — GNS3 Topology & IPv4 Plan
+Instructor provides the GNS3 topology with:
 
-## 2.1 Instructor-provided topology diagram
+* Windows 11 Client
+* Ubuntu Desktop Client
+* Ubuntu Server (Nginx + SSH)
+* Optional router/switch node
 
-Instructor will provide the GNS3 topology diagram showing:
+## 4.2 Addressing Plan
 
-*   **Windows 11 Client**
-*   **Ubuntu Desktop Client**
-*   **Ubuntu Server** (Nginx + SSH)
-*   **Optional Router/Switch node** in GNS3 for realism
+* Subnet: `192.168.100.0/24`
+* Gateway: `192.168.100.1`
 
-Students should label nodes and interfaces in the diagram.
+| Node                      | IP               | Hostname         |
+| ------------------------- | ---------------- | ---------------- |
+| Ubuntu Server (web + SSH) | `192.168.100.10` | `web.saitge.lab` |
+| Windows 11 Client         | `192.168.100.20` | —                |
+| Ubuntu Desktop Client     | `192.168.100.30` | —                |
 
-***
+If no DNS exists, you will use `hosts` files.
 
-## 2.2 Recommended addressing plan (IPv4)
+---
 
-Use a single lab subnet; instructor may adjust for your environment.
+# 5) Workshop Tasks (PKI → TLS → Trust Stores → SSH Comparison)
 
-**Lab Subnet:** `172.16.70.0/24`  
-**Gateway (if router used):** `172.16.70.1`
+## Part A — Build HTTPS service on Ubuntu Server (Nginx + TLS)
 
-*   **Ubuntu Server (web + SSH):** `172.16.70.10`
-    *   Hostname: `web.saitge.lab`
-*   **Windows 11 client:** `172.16.70.20`
-*   **Ubuntu Desktop client:** `172.16.70.30`
-
-**DNS note:** If you do not have internal DNS, students will use `hosts` files on both clients to resolve `web.saitge.lab` to `172.16.70.10`.
-
-***
-
-# 3) Workshop Tasks (Integrated: PKI → TLS → Trust Stores → SSH Comparison)
-
-## Part A — Build the secure HTTPS service on Ubuntu Server (Nginx + TLS)
-
-### A1) Install Nginx and OpenSSL (Ubuntu Server)
+### A1) Install Nginx + OpenSSL
 
 On Ubuntu Server:
 
@@ -145,15 +134,9 @@ sudo apt update
 sudo apt install -y nginx openssl ca-certificates
 ```
 
-Nginx’s official guidance shows how to configure HTTPS using `ssl_certificate` and `ssl_certificate_key` and to listen on 443. [\[knowledge....gicert.com\]](https://knowledge.digicert.com/tutorials/create-csr-using-openssl-and-install-your-ssl-certificate-on-an-apache-server)
-
-***
-
 ### A2) Generate a self-signed certificate **with SAN**
 
-Modern clients require SAN entries; OpenSSL supports adding SAN via `-addext`. [\[jeffbrown.tech\]](https://jeffbrown.tech/azure-devops-service-connection/), [\[stackoverflow.com\]](https://stackoverflow.com/questions/77683284/how-to-clone-a-repo-with-a-azure-devops-link-and-an-ssh-key)
-
-Create a TLS key/cert pair:
+Create key/cert:
 
 ```bash
 sudo mkdir -p /etc/ssl/saitge
@@ -164,7 +147,7 @@ sudo openssl req -nodes -x509 -sha256 -newkey rsa:4096 \
   -out web.saitge.lab.crt \
   -days 365 \
   -subj "/CN=web.saitge.lab" \
-  -addext "subjectAltName=DNS:web.saitge.lab,IP:172.16.70.10,DNS:localhost"
+  -addext "subjectAltName=DNS:web.saitge.lab,IP:192.168.100.10,DNS:localhost"
 ```
 
 Lock down the private key:
@@ -173,13 +156,14 @@ Lock down the private key:
 sudo chmod 600 /etc/ssl/saitge/web.saitge.lab.key
 ```
 
-Nginx documentation emphasizes the private key is sensitive and should be protected with restricted access. [\[knowledge....gicert.com\]](https://knowledge.digicert.com/tutorials/create-csr-using-openssl-and-install-your-ssl-certificate-on-an-apache-server)
+**Why this matters**
 
-***
+* The private key is the sensitive secret. If exposed, attackers can impersonate the service.
+* SAN ensures modern clients accept the identity claim.
 
 ### A3) Configure Nginx to use TLS
 
-Create a site config:
+Create config:
 
 ```bash
 sudo nano /etc/nginx/sites-available/web.saitge.lab
@@ -210,7 +194,7 @@ server {
 }
 ```
 
-This aligns directly with Nginx’s HTTPS server configuration model. [\[knowledge....gicert.com\]](https://knowledge.digicert.com/tutorials/create-csr-using-openssl-and-install-your-ssl-certificate-on-an-apache-server)
+This matches NGINX’s canonical HTTPS configuration pattern (`listen 443 ssl`, `ssl_certificate`, `ssl_certificate_key`). ([nginx.org][3])
 
 Enable and reload:
 
@@ -220,34 +204,31 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-***
-
-### A4) Verify TLS locally on the server
+### A4) Verify TLS locally on the server (expect warnings)
 
 ```bash
 curl -vk https://localhost/
 ```
 
-You will likely see a trust warning because the cert is self-signed (expected at this stage). [\[edvaldogui...aes.com.br\]](https://edvaldoguimaraes.com.br/2024/11/25/using-ssh-with-azure-devops-a-step-by-step-guide/)
+✅ You should see **TLS negotiation** occur.
+⚠️ You will see trust warnings (self-signed) — expected at this stage.
 
-***
+---
 
-## Part B — Make clients resolve the hostname correctly (DNS/hosts)
+## Part B — Hostname resolution (DNS/hosts)
 
-If no internal DNS exists, configure hosts files:
-
-### B1) On Windows 11 client (PowerShell as admin)
+### B1) Windows 11 client (PowerShell as Admin)
 
 Edit:
 `C:\Windows\System32\drivers\etc\hosts`
 
 Add:
 
-    172.16.70.10  web.saitge.lab
+```
+192.168.100.10  web.saitge.lab
+```
 
-### B2) On Ubuntu Desktop client
-
-Edit:
+### B2) Ubuntu Desktop client
 
 ```bash
 sudo nano /etc/hosts
@@ -255,24 +236,28 @@ sudo nano /etc/hosts
 
 Add:
 
-    172.16.70.10  web.saitge.lab
+```
+192.168.100.10  web.saitge.lab
+```
 
-**Critical thinking:** Why is hostname matching important in TLS?  
-Because certificate validation checks that the hostname you typed is present in the certificate identity (SAN). [\[jeffbrown.tech\]](https://jeffbrown.tech/azure-devops-service-connection/), [\[stackoverflow.com\]](https://stackoverflow.com/questions/77683284/how-to-clone-a-repo-with-a-azure-devops-link-and-an-ssh-key)
+**Checkpoint (must pass before Part C):**
 
-***
+* From both clients, `ping web.saitge.lab` resolves to `192.168.100.10`
 
-## Part C — Trust the certificate properly (Certificate stores)
+---
 
-### C1) Export or copy the public certificate from server to clients
+## Part C — Trust the certificate properly (trust stores)
 
-Copy the public certificate file `web.saitge.lab.crt` to each client (SCP, shared folder, or GNS3 file share).
+### C1) Copy the public certificate to clients
 
-***
+Copy `web.saitge.lab.crt` from server to each client (SCP, shared folder, etc.).
+This is safe: it’s a **public certificate**, not the private key.
 
-### C2) Install trust on Ubuntu Desktop
+> **Instructor best practice:** ensure students *never* copy the `.key`.
 
-Ubuntu’s official guidance: copy `.crt` into `/usr/local/share/ca-certificates/` and run `update-ca-certificates`. [\[edvaldogui...aes.com.br\]](https://edvaldoguimaraes.com.br/2024/11/25/using-ssh-with-azure-devops-a-step-by-step-guide/)
+---
+
+### C2) Install trust on Ubuntu Desktop (trust store)
 
 On Ubuntu Desktop:
 
@@ -281,123 +266,119 @@ sudo cp web.saitge.lab.crt /usr/local/share/ca-certificates/web.saitge.lab.crt
 sudo update-ca-certificates
 ```
 
+Ubuntu’s documented process is to place the cert in the trust location and run `update-ca-certificates`. ([documentation.ubuntu.com][1])
+
 Verify:
 
 ```bash
 curl -v https://web.saitge.lab/
 ```
 
-If the trust store is correct, you should not see “unknown authority” errors. [\[edvaldogui...aes.com.br\]](https://edvaldoguimaraes.com.br/2024/11/25/using-ssh-with-azure-devops-a-step-by-step-guide/)
+✅ “unknown authority” errors should be gone.
 
-***
+---
 
-### C3) Install trust on Windows 11
+### C3) Install trust on Windows 11 (Trusted Root store)
 
-Microsoft’s agent guidance emphasizes the OS store must trust the server certificate to avoid TLS security errors. [\[betanet.net\]](https://betanet.net/view-post/azure-devops-ssh-configuration-6497)
+Import the certificate into the **Local Machine → Trusted Root Certification Authorities** store using MMC.
 
-On Windows 11:
+Microsoft’s documentation describes using MMC and the Certificates snap-in to manage the Trusted Root store. ([Microsoft Learn][2])
 
-1.  Double-click `web.saitge.lab.crt` (or `.cer` if you exported)
-2.  **Install Certificate**
-3.  Choose **Local Machine**
-4.  Place in **Trusted Root Certification Authorities**
-
-Verify TLS handshake:
+Verify handshake:
 
 ```powershell
 Invoke-WebRequest -Uri https://web.saitge.lab/ -UseBasicParsing
 ```
 
-Even if an application returns an auth error, a clean handshake indicates trust is correctly installed (this is exactly how Microsoft recommends validating self-signed trust for agents). [\[betanet.net\]](https://betanet.net/view-post/azure-devops-ssh-configuration-6497)
+✅ Success indicates TLS trust and encryption are working.
 
-***
+---
 
-## Part D — SSH keys: compare and connect the trust model (optional but recommended)
+## Part D — SSH keys: compare trust models (optional but recommended)
 
-### D1) Enable SSH key login on Ubuntu Server (if not already)
-
-On Ubuntu Server:
+### D1) Enable SSH server on Ubuntu Server
 
 ```bash
 sudo apt install -y openssh-server
 sudo systemctl enable --now ssh
 ```
 
-### D2) Create SSH keys on Windows 11 and push public key to Ubuntu Server
-
-On Windows 11:
+### D2) Create SSH keys on Windows and push trust to server
 
 ```powershell
 ssh-keygen -t rsa-sha2-256 -b 4096
 ```
 
-Push the public key to Ubuntu Server (PowerShell):
-
 ```powershell
 type $env:USERPROFILE\.ssh\id_rsa.pub |
-ssh student@172.16.70.10 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
+ssh student@192.168.100.10 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
 ```
-
-Fix permissions:
 
 ```powershell
-ssh student@172.16.70.10 "chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys"
+ssh student@192.168.100.10 "chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys"
 ```
 
-**Critical thinking:**
+**Critical comparison**
 
-*   In TLS, you installed trust into a *certificate store.*
-*   In SSH, you installed trust by placing your public key into *authorized\_keys.*  
-    Both are “trust distribution,” just implemented differently. [\[edvaldogui...aes.com.br\]](https://edvaldoguimaraes.com.br/2024/11/25/using-ssh-with-azure-devops-a-step-by-step-guide/), [\[betanet.net\]](https://betanet.net/view-post/azure-devops-ssh-configuration-6497)
+* TLS: you installed trust into a **certificate store**
+* SSH: you installed trust into **authorized_keys**
+  Both are “trust distribution,” but implemented differently.
 
-***
+Verify:
 
-# 4) Required Evidence (Students must capture outputs)
+```powershell
+ssh student@192.168.100.10
+```
 
-Students should record:
+✅ No password prompt after key install.
 
-1.  Screenshot of `curl -vk https://web.saitge.lab/` **before** trust is installed (shows warning). [\[edvaldogui...aes.com.br\]](https://edvaldoguimaraes.com.br/2024/11/25/using-ssh-with-azure-devops-a-step-by-step-guide/)
-2.  Screenshot of successful `curl -v https://web.saitge.lab/` **after** Ubuntu trust store installation. [\[edvaldogui...aes.com.br\]](https://edvaldoguimaraes.com.br/2024/11/25/using-ssh-with-azure-devops-a-step-by-step-guide/)
-3.  Screenshot of Windows certificate installed in **Trusted Root Certification Authorities** (or proof via MMC).
-4.  Output of `Invoke-WebRequest https://web.saitge.lab/` showing no TLS validation failure. [\[betanet.net\]](https://betanet.net/view-post/azure-devops-ssh-configuration-6497)
-5.  SSH proof: `ssh student@172.16.70.10` shows no password prompt after key install (optional).
+---
 
-***
+# 6) Required Evidence (What students must capture)
 
-# 5) Reflection (Critical Thinking — required)
+1. `curl -vk https://web.saitge.lab/` **before** trust (shows warning)
+2. `curl -v https://web.saitge.lab/` **after** Ubuntu trust install (no unknown authority)
+3. Proof of Windows cert trust store install (MMC screenshot of the Trusted Root store)
+4. Output of `Invoke-WebRequest https://web.saitge.lab/` (no TLS validation failure)
+5. (Optional) SSH proof: `ssh student@192.168.100.10` showing no password prompt
 
-Write **350–500 words** answering the prompts below. Your answer will be graded for clarity, accuracy, and reasoning.
+---
 
-## Reflection prompts
+# 7) Troubleshooting (Students should use this before asking for help)
 
-1.  **Trust model comparison:**  
-    Explain how trust is established in **PKI/TLS** versus **SSH**. In your own words, what served as the “trust anchor” in each case? [\[edvaldogui...aes.com.br\]](https://edvaldoguimaraes.com.br/2024/11/25/using-ssh-with-azure-devops-a-step-by-step-guide/), [\[betanet.net\]](https://betanet.net/view-post/azure-devops-ssh-configuration-6497)
+### Problem: Still seeing certificate warning after “installing”
 
-2.  **CA vs self-signed decision:**  
-    Give two scenarios where **CA-signed** certificates are required and two where **self-signed** is acceptable. Justify with security and operational reasons (deployment scale, user trust, risk). [\[geeksforgeeks.org\]](https://www.geeksforgeeks.org/devops/how-to-install-an-ssl-certificate-on-azure/), [\[gist.github.com\]](https://gist.github.com/KeithYeh/bb07cadd23645a6a62509b1ec8986bbc)
+* Did you browse to **[https://web.saitge.lab](https://web.saitge.lab)** (hostname), not the IP?
+* Does the certificate SAN include the exact hostname?
+* Did you install into the **Trusted Root** store (Windows) and run `update-ca-certificates` (Ubuntu)?
 
-3.  **Local CA critical thinking:**  
-    If SAITGE had 30 internal services (DevOps, monitoring, wiki, API gateway, dashboards), what breaks if each is self-signed? How would an internal CA reduce workload? [\[edvaldogui...aes.com.br\]](https://edvaldoguimaraes.com.br/2024/11/25/using-ssh-with-azure-devops-a-step-by-step-guide/)
+### Problem: Nginx won’t reload
 
-4.  **SAN and identity:**  
-    Why is SAN important for modern TLS validation? How could a mismatch create risk or failure? [\[jeffbrown.tech\]](https://jeffbrown.tech/azure-devops-service-connection/), [\[stackoverflow.com\]](https://stackoverflow.com/questions/77683284/how-to-clone-a-repo-with-a-azure-devops-link-and-an-ssh-key)
+* Run `sudo nginx -t` and fix the line it reports
+* Check file paths for `.crt` and `.key`
 
-5.  **Security tradeoffs:**  
-    Where do you draw the line between “lab convenience” and “professional security practice”? Provide one concrete example from this lab (e.g., trusting a root cert, protecting private keys, expiry). [\[knowledge....gicert.com\]](https://knowledge.digicert.com/tutorials/create-csr-using-openssl-and-install-your-ssl-certificate-on-an-apache-server), [\[betanet.net\]](https://betanet.net/view-post/azure-devops-ssh-configuration-6497)
+### Problem: Ubuntu trust didn’t update
 
-***
+* Confirm the file is `.crt` and in `/usr/local/share/ca-certificates/`
+* Re-run `sudo update-ca-certificates` ([manpages.ubuntu.com][4])
 
-# 6) Instructor Notes (optional guidance)
+---
 
-*   Encourage students to observe the exact error messages before/after trust. Ubuntu trust store steps are authoritative and should be followed carefully, including `.crt` extension requirement. [\[edvaldogui...aes.com.br\]](https://edvaldoguimaraes.com.br/2024/11/25/using-ssh-with-azure-devops-a-step-by-step-guide/)
-*   Reinforce that TLS success means handshake validates; application auth is separate. Microsoft explicitly uses this concept for self-hosted agents. [\[betanet.net\]](https://betanet.net/view-post/azure-devops-ssh-configuration-6497)
-*   Use Nginx TLS config as the canonical example of cert/key binding. [\[knowledge....gicert.com\]](https://knowledge.digicert.com/tutorials/create-csr-using-openssl-and-install-your-ssl-certificate-on-an-apache-server)
+# 8) Reflection (350–500 words)
 
-***
+1. Compare trust anchors: PKI/TLS vs SSH (what is trusted in each?)
+2. CA-signed vs self-signed: two scenarios for each, justify operationally
+3. Local CA at scale: what breaks with 30 self-signed services?
+4. SAN importance: what fails and what risk does mismatch introduce?
+5. Lab convenience vs professional practice: one concrete example (keys, expiry, trust stores)
 
-## Quick clarifying questions (so I tailor the lab “just right”)
+---
 
-1.  Will students run the **Windows 11 client inside GNS3** (as a VM), or on their physical laptops connected to the GNS3 lab network?
-2.  Do you want the Ubuntu Server to host **only Nginx**, or also a second service (e.g., Git over HTTPS, simple API endpoint) to reinforce “many services → internal CA”?
+## Instructor Notes (optional)
 
-If you answer those, I can adapt the workshop to your exact topology constraints and add a “bonus internal CA mini-capstone” that naturally leads into Workshop 08.
+* Emphasize: TLS handshake success ≠ application authorization (separate layers)
+* Reinforce: NGINX HTTPS directives and port 443 usage are canonical ([nginx.org][3])
+* Reinforce: Ubuntu trust store procedure is authoritative ([documentation.ubuntu.com][1])
+* Reinforce: Windows Trusted Root store procedures are authoritative ([Microsoft Learn][2])
+
+---
