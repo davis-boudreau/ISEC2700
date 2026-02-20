@@ -214,23 +214,29 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    subgraph Architecture["Security Architecture Domains"]
-        IAM[Identity & Access Management]
-        NET[Network Security]
-        APP[Application Security]
-        DATA[Data Security]
-        DET[Detection]
-        RESP[Response]
-    end
+  %% Subgraph for Security Architecture Domains
+  subgraph Architecture["Security Architecture Domains"]
+    direction TB
+    IAM[Identity & Access Management]
+    END[Endpoint]
+    NET[Network Security]
+    APP[Application Security]
+    DATA[Data Security]
+    RESP[Response]
+    DET[Detection]
+  end
 
-    RISK[Identified Risk]
+  RISK[Identified Risk]
 
-    RISK --> IAM
-    RISK --> NET
-    RISK --> APP
-    RISK --> DATA
-    RISK --> DET
-    RISK --> RESP
+  %% Edges
+  RISK --> IAM
+  RISK --> END
+  RISK --> NET
+  RISK --> APP
+  RISK --> DATA
+  RISK --> RESP
+  RISK --> DET
+
 ```
 
 You will use this model:
