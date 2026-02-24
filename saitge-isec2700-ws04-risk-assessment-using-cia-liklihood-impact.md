@@ -125,36 +125,8 @@ Answer briefly:
 A risk exists only when **four elements intersect**.
 
 ```mermaid
-flowchart LR
-    T["Threat<br/>(e.g. Ransomware)"]
-    V["Vulnerability<br/>(Weak Permissions)"]
-    A["Asset<br/>(Domain File Server)"]
-    I["Impact<br/>(CIA)"]
 
-    T --> R[Risk]
-    V --> R
-    A --> R
-    I --> R
 
-    R --> P[Risk Priority]
-```
-
-> If any one element is missing, you do not have a real risk.
-
----
-
-### 6.2 Likelihood vs Impact (They Are Not the Same)
-
-```mermaid
-quadrantChart
-    title Likelihood vs Impact
-    x-axis Low Likelihood --> High Likelihood
-    y-axis Low Impact --> High Impact
-
-    quadrant-1 Low Priority
-    quadrant-2 Monitor
-    quadrant-3 Critical
-    quadrant-4 Medium Priority
 ```
 
 * **Likelihood** asks: *How probable is this today?*
@@ -190,20 +162,7 @@ flowchart TD
 ### 6.4 Standard Risk Matrix (Required Model)
 
 ```mermaid
-flowchart TB
-    subgraph Matrix["ISEC 2700 Standard Risk Matrix"]
-        LL["Low Likelihood<br/>Low Impact → LOW"]
-        LM["Low Likelihood<br/>Medium Impact → LOW"]
-        LH["Low Likelihood<br/>High Impact → MEDIUM"]
 
-        ML["Medium Likelihood<br/>Low Impact → LOW"]
-        MM["Medium Likelihood<br/>Medium Impact → MEDIUM"]
-        MH["Medium Likelihood<br/>High Impact → HIGH"]
-
-        HL["High Likelihood<br/>Low Impact → MEDIUM"]
-        HM["High Likelihood<br/>Medium Impact → HIGH"]
-        HH["High Likelihood<br/>High Impact → HIGH"]
-    end
 ```
 
 > This matrix is **policy**, not opinion.
@@ -213,30 +172,57 @@ flowchart TB
 ### 6.5 Master Security Architecture + Risk Map (Semester Anchor)
 
 ```mermaid
+---
+config:
+  layout: elk
+  elk:
+    nodePlacementStrategy: NETWORK_SIMPLEX
+    algorithm: layered
+    direction: DOWN
+    # This ensures tiers stay separated
+    "spacing.edgeNodeBetweenLayers": 60
+---
 flowchart TB
-  %% Subgraph for Security Architecture Domains
-  subgraph Architecture["Security Architecture Domains"]
-    direction TB
+
+  subgraph Strategic_Tier ["1. Strategic / Risk Management"]
+    RISK[Identified Risk]
+  end
+
+  subgraph Protection_Tier ["2. Protection & Prevention"]
+    direction LR
     IAM[Identity & Access Management]
     END[Endpoint]
     NET[Network Security]
     APP[Application Security]
     DATA[Data Security]
-    RESP[Response]
-    DET[Detection]
   end
 
-  RISK[Identified Risk]
+  subgraph Ops_Tier ["3. Monitoring & Operations"]
+    direction LR
+    DET[Detection]
+    RESP[Response]
+  end
 
-  %% Edges
+  %% Strategic to Protection
   RISK --> IAM
   RISK --> END
   RISK --> NET
   RISK --> APP
   RISK --> DATA
-  RISK --> RESP
-  RISK --> DET
 
+  %% Protection to Ops
+  DATA -.-> DET
+  END -.-> DET
+  IAM -.-> DET
+  NET -.-> DET
+  END -.-> DET
+  APP -.-> DET
+  %% The requested reversed flow (Feedback Loop)
+  DET --> RISK
+  
+  %% Operations internal flow
+  DET --> RESP
+  
 ```
 
 You will use this model:
