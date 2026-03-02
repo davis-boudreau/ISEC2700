@@ -211,12 +211,12 @@ flowchart TB
   RISK --> DATA
 
   %% Protection to Ops
-  DATA -.-> DET
-  END -.-> DET
   IAM -.-> DET
-  NET -.-> DET
   END -.-> DET
+  NET -.-> DET
   APP -.-> DET
+  DATA -.-> DET
+  
   %% The requested reversed flow (Feedback Loop)
   DET --> RISK
   
