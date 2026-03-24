@@ -124,6 +124,11 @@ MapleTech operates a small office network that combines **on-premise systems and
 The architecture diagram below represents the current environment.
 
 ```mermaid
+---
+config:
+   layout: elk
+---
+
 flowchart TD
 
     Internet --> ISP_Router
@@ -135,12 +140,14 @@ flowchart TD
     %% DMZ
     DMZ --> WebServer
     DMZ --> MailGateway
+    DMZ --> DNSServer01
 
     %% Internal Network
     InternalNetwork --> CoreSwitch
 
     CoreSwitch --> Workstations
     CoreSwitch --> FileServer
+    CoreSwitch --> SQLDatabase
     CoreSwitch --> DomainController
     CoreSwitch --> NetworkPrinter
     CoreSwitch --> WiFiAP
@@ -151,11 +158,18 @@ flowchart TD
 
     %% Cloud services
     Workstations --> Microsoft365
-    DomainController --> AzureADSync
-
+    Workstations --> UserFiles
+    UserFiles --> Microsoft365
+    
     %% Backup
     FileServer --> BackupNAS
-    BackupNAS --> USBBackup
+    SQLDatabase --> BackupNAS
+    MailGateway --> BackupNAS
+    DNSServer01 --> BackupNAS
+    WebServer --> BackupNAS
+    DomainController --> BackupNAS
+    DomainController --> AzureADSync
+    AzureADSync --> AzureActiveDirectory
 
     %% Remote access
     Internet --> RDPAccess
