@@ -1,0 +1,93 @@
+flowchart TB
+
+%% =========================
+%% THREAT ENTRY
+%% =========================
+
+Threats[Threat Actors<br/>Malware / Ransomware / Insider / External Attacks]
+
+Threats --> Prevention
+
+%% =========================
+%% PREVENTION
+%% =========================
+
+subgraph Prevention["PREVENTION (Reduce Likelihood)"]
+
+P1[Firewall / Network Segmentation]
+P2[Access Control / RBAC / MFA]
+P3[System Hardening / Patch Management]
+P4[User Awareness Training]
+P5[Secure Architecture Design]
+
+end
+
+Prevention --> Detection
+
+%% =========================
+%% DETECTION
+%% =========================
+
+subgraph Detection["DETECTION (Identify Events)"]
+
+D1[Logging & Monitoring]
+D2[SIEM / Alerting Systems]
+D3[Intrusion Detection Systems]
+D4[Anomaly Detection]
+D5[Security Auditing]
+
+end
+
+Detection --> Response
+
+%% =========================
+%% RESPONSE
+%% =========================
+
+subgraph Response["RESPONSE (Contain & Control)"]
+
+R1[Incident Response Plan]
+R2[System Isolation]
+R3[Threat Containment]
+R4[Forensic Analysis]
+R5[Communication & Escalation]
+
+end
+
+Response --> Recovery
+
+%% =========================
+%% RECOVERY
+%% =========================
+
+subgraph Recovery["RECOVERY (Restore Operations)"]
+
+RC1[Backup Restoration]
+RC2[Disaster Recovery Site Activation]
+RC3[System Validation & Integrity Checks]
+RC4[Business Continuity Operations]
+RC5[Post-Incident Review]
+
+end
+
+%% =========================
+%% FEEDBACK LOOP
+%% =========================
+
+Recovery --> LessonsLearned[Lessons Learned / Improvements]
+
+LessonsLearned --> Prevention
+
+%% =========================
+%% MP1 / MP2 MAPPING
+%% =========================
+
+MP1[MP1:<br/>Risk Identification<br/>Vulnerability Analysis<br/>Threat Assessment]
+
+MP2[MP2:<br/>Backup Design<br/>Disaster Recovery<br/>Resilience Engineering]
+
+MP1 -.-> Detection
+MP1 -.-> Prevention
+
+MP2 -.-> Recovery
+MP2 -.-> Response
