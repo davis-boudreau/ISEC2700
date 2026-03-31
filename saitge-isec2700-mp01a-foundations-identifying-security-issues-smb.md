@@ -265,18 +265,29 @@ Example:
 
 Risk assessment determines **priority levels**.
 
+| Quadrant     | Position                      | Meaning                                                            | Typical Response                                                |
+| ------------ | ----------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------- |
+| **Monitor**  | High Likelihood + Low Impact  | The risk occurs frequently but causes minimal damage.              | Monitor and track. Improvements may be optional.                |
+| **Reduce**   | Low Likelihood + High Impact  | The event is unlikely but would cause serious harm if it occurred. | Implement preventative controls to reduce impact or likelihood. |
+| **Accept**   | Low Likelihood + Low Impact   | The risk is minor and unlikely.                                    | Accept the risk; mitigation is not worth the cost.              |
+| **Critical** | High Likelihood + High Impact | The event is both likely and severely damaging.                    | Immediate mitigation required.                                  |
+
+
 ```mermaid
 quadrantChart
-    title Risk Matrix
+    title Security Risk Matrix (2×2)
+
     x-axis Low Impact --> High Impact
     y-axis Low Likelihood --> High Likelihood
-    quadrant-1 Monitor
-    quadrant-2 Reduce
+
+    quadrant-1 Critical
+    quadrant-2 Monitor
     quadrant-3 Accept
-    quadrant-4 Critical
-    NoMFA: [0.8,0.9]
-    NoSegmentation: [0.7,0.6]
-    WeakPasswords: [0.6,0.7]
+    quadrant-4 Reduce
+
+    No MFA on Admin Accounts: [0.8, 0.9]
+    No Network Segmentation: [0.7, 0.6]
+    Weak Password Policy: [0.6, 0.7]
 ```
 
 The most critical risks must be addressed first.
