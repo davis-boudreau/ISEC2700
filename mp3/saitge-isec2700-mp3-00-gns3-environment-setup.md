@@ -50,7 +50,7 @@ Before security controls can be implemented, you must:
 
 ### 🔧 Instructions
 
-1. Connect to your assigned GNS3 server (via VPN)
+1. Connect to your assigned GNS3 server 172.16.184.<deskID> from the SAITGE Labs or via VPN.
 2. Launch GNS3 (Web UI or Desktop Client)
 3. Click:
 
@@ -72,7 +72,7 @@ ISEC2700-MP3
 
 ### 🔧 Instructions
 
-1. In GNS3, go to:
+1. Your instructor should provide you all of the necessary appliance files to complete this project.  In GNS3, go to:
 
 ```
 File → Import Appliance
