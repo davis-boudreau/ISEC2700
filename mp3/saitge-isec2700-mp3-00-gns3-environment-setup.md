@@ -114,9 +114,9 @@ flowchart TB
 %% ISP / External
 subgraph ISP["ISP / External"]
   direction TB
-  Cloud["GNS3 Cloud (tap0) 172.16.184.0/24"]
-  SW1["Switch1"]
-  R1["Cisco IOSv Router G0/0: 172.16.184.2XX"]
+  Cloud["GNS3 Cloud <br>172.16.184.0/24 <br>tap0"]
+  SW1["e0 <br>Switch1 <br>e1"]
+  R1["g0/0<br>172.16.184.2XX/24<br>Cisco IOSv Router<br>192.168.10.1/24<br>g0/1"]
 
   Cloud --> SW1 --> R1
 end
@@ -124,8 +124,8 @@ end
 %% Internal Edge
 subgraph EDGE["Edge Network"]
   direction TB
-  SW2["Switch2"]
-  FW["pfSense Firewall em0: 192.168.10.2 em1: 192.168.20.1"]
+  SW2["e0<br>Switch2<br>e1"]
+  FW["em0<br>192.168.10.2<br>pfSense Firewall<br>192.168.20.1<br>em1"]
 
   SW2 --> FW
 end
@@ -149,28 +149,28 @@ subgraph APP["Application Network"]
 end
 
 %% VLANs
-subgraph VLAN40["VLAN 40 – Web"]
-  direction TB
-  SW6["Switch6"]
-  WEB["NGINX Container 192.168.40.X"]
-
-  SW6 --> WEB
-end
-
 subgraph VLAN50["VLAN 50 – Database"]
   direction TB
-  SW7["Switch7"]
+  SW6["Switch6"]
   DB["Postgres Container 192.168.50.X"]
 
-  SW7 --> DB
+  SW6 --> DB
+end
+
+subgraph VLAN40["VLAN 40 – Web"]
+  direction TB
+  SW5["Switch5"]
+  WEB["NGINX Container 192.168.40.X"]
+
+  SW5 --> WEB
 end
 
 %% Interconnections (LR)
-R1 -->|G0/1 192.168.10.1/24| SW2
+R1 -->|192.168.10.1/24| SW2
 FW -->|192.168.20.0/24| SW3
 PROXY --> SW4
-CORE -->|VLAN40 192.168.40.0/24| SW6
-CORE -->|VLAN50 192.168.50.0/24| SW7
+CORE -->|VLAN40 192.168.40.0/24| SW5
+CORE -->|VLAN50 192.168.50.0/24| SW6
 ```
 
 ---
