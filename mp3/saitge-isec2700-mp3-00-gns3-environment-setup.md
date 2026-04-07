@@ -125,7 +125,7 @@ end
 subgraph EDGE["Edge Network"]
   direction TB
   SW2["e0<br>Switch2<br>e1"]
-  FW["em0<br>192.168.10.2<br>pfSense Firewall<br>192.168.20.1<br>em1"]
+  FW["em0<br>192.168.10.2/24<br>pfSense Firewall<br>192.168.20.1/24<br>em1"]
 
   SW2 --> FW
 end
@@ -133,8 +133,8 @@ end
 %% DMZ
 subgraph DMZ["DMZ"]
   direction TB
-  SW3["Switch3"]
-  PROXY["Ubuntu NGINX Reverse Proxy eth0: 192.168.20.2 eth1: 192.168.30.1"]
+  SW3["e0<br>Switch3<br>e1<br>"]
+  PROXY["e0<br>192.168.20.2/24<br>Ubuntu NGINX Reverse Proxy<br>192.168.30.1/24<br>e1<br>"]
 
   SW3 --> PROXY
 end
@@ -142,8 +142,8 @@ end
 %% Core / App
 subgraph APP["Application Network"]
   direction TB
-  SW4["Switch4 192.168.30.0/24"]
-  CORE["Cisco IOSvL2 Core Switch VLAN30 SVI: 192.168.30.2"]
+  SW4["e0<br>Switch4<br>192.168.30.0/24<br>e1<br>"]
+  CORE["g0/0<br>192.168.30.2/24<br>Cisco IOSvL2 Core Switch<br>g0/1:SVI:192.168.40.1/24<br>g0/2:SVI:192.168.50.1/24<br>"]
 
   SW4 --> CORE
 end
@@ -151,26 +151,26 @@ end
 %% VLANs
 subgraph VLAN50["VLAN 50 – Database"]
   direction TB
-  SW6["Switch6"]
-  DB["Postgres Container 192.168.50.X"]
+  SW6["e0<br>Switch6<br>e1<br>"]
+  DB["eth0<br>Postgres Container<br>192.168.50.2/24<br>"]
 
   SW6 --> DB
 end
 
 subgraph VLAN40["VLAN 40 – Web"]
   direction TB
-  SW5["Switch5"]
-  WEB["NGINX Container 192.168.40.X"]
+  SW5["e0<br>Switch5<br>e1<br>"]
+  WEB["eth0<br>NGINX Container<br>192.168.40.2/24<br>"]
 
   SW5 --> WEB
 end
 
 %% Interconnections (LR)
-R1 -->|192.168.10.1/24| SW2
+R1 -->|192.168.10.0/24| SW2
 FW -->|192.168.20.0/24| SW3
-PROXY --> SW4
-CORE -->|VLAN40 192.168.40.0/24| SW5
-CORE -->|VLAN50 192.168.50.0/24| SW6
+PROXY -->|192.168.30.0/24| SW4
+CORE -->|192.168.40.0/24| SW5
+CORE -->|192.168.50.0/24| SW6
 ```
 
 ---
