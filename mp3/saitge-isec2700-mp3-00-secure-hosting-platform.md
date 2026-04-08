@@ -1,4 +1,4 @@
-# **ISEC2700 – Mini Project 3 (MP03-00)**
+# **ISEC2700 – Mini Project 3 - Building a Secure Web App Hosting Platform**
 
 ## **Phase 00: GNS3 Environment Setup & Internet Validation**
 
