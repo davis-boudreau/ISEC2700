@@ -2,96 +2,153 @@
 
 ## **Phase 04: Secure Core Switch (VLAN + Segmentation Enforcement)**
 
-**Course:** ISEC2700 – Intro to Information Security Practices<br>
-**Instructor:** Davis Boudreau<br>
-**Type:** Mini-Project Phase<br>
-**Mode:** Individual<br>
-**Estimated Time:** 1–2 hours<br>
-**Prerequisite:** MP03-03 completed<br>
+**Course:** ISEC2700 – Intro to Information Security Practices
+**Instructor:** Davis Boudreau
+**Type:** Mini-Project Phase
+**Mode:** Individual
+**Estimated Time:** 5–7 hours
+**Prerequisite:** MP03-03 completed
 
 ---
 
 # **1. Overview / Purpose**
 
-In this phase, you will configure the **Core Switch (Cisco IOSvL2)** to:
+In this phase, you will configure the **Core Switch (CORE-SW)** to enforce **layered security between the application tiers** using:
 
-* implement **VLAN segmentation**
-* enable **inter-VLAN routing using SVIs**
-* enforce **strict access control between application tiers**
+* VLANs
+* SVIs
+* inter-VLAN routing
+* inbound ACLs on each SVI
 
----
+This phase is one of the most important parts of the project because it teaches you that:
 
-## 🎯 Your Goals
+> **Routing allows communication, but ACLs decide whether that communication is permitted.**
 
-You will:
+By the end of this phase, you will have a switch that:
 
-* configure VLANs 30, 40, and 50
-* configure **SVIs (Switch Virtual Interfaces)**
-* apply **ACLs to control inter-VLAN traffic**
-* restrict communication between:
-
-  * Web tier (VLAN 40)
-  * Database tier (VLAN 50)
-* validate using:
-
-  * **pgAdmin container**
-  * **debian-iptools container**
+* allows the **proxy server** in VLAN 30 to access the **web application** in VLAN 40 on **TCP 80 and 443 only**
+* allows the **web application** in VLAN 40 to access the **database** in VLAN 50 on **TCP 5432 only**
+* blocks all other routed traffic between these networks
+* allows only the required **return traffic** using the Cisco `established` keyword
 
 ---
 
 # **2. What You Are Building (Security Model)**
 
----
+## **VLAN Design**
 
-## 🔐 Segmentation Model
-
-| VLAN    | Purpose                  | Network         |
-| ------- | ------------------------ | --------------- |
-| VLAN 30 | App Entry (Proxy → Core) | 192.168.30.0/24 |
-| VLAN 40 | Web Tier                 | 192.168.40.0/24 |
-| VLAN 50 | Database Tier            | 192.168.50.0/24 |
+| VLAN    | Purpose                        | Network         | Gateway / SVI |
+| ------- | ------------------------------ | --------------- | ------------- |
+| VLAN 30 | Proxy / Application Entry Tier | 192.168.30.0/24 | 192.168.30.2  |
+| VLAN 40 | Web Application Tier           | 192.168.40.0/24 | 192.168.40.1  |
+| VLAN 50 | Database Tier                  | 192.168.50.0/24 | 192.168.50.1  |
 
 ---
 
-## 🔥 Security Policy
+## **Security Policy**
 
-### ✅ Allowed:
+### Allowed
 
-| Source            | Destination | Port        |
-| ----------------- | ----------- | ----------- |
-| VLAN 30 → VLAN 40 | Web         | TCP 80, 443 |
-| VLAN 40 → VLAN 50 | Database    | TCP 5432    |
+* VLAN 30 → VLAN 40 on TCP 80 and 443
+* VLAN 40 → VLAN 50 on TCP 5432
+* return TCP traffic for those permitted sessions
 
----
+### Blocked
 
-### ❌ Denied:
-
-* ALL other inter-VLAN traffic
-* Direct DB access from VLAN 30
-* Any non-Postgres traffic to VLAN 50
+* VLAN 30 → VLAN 50 direct access
+* VLAN 30 → anything except web ports on VLAN 40
+* VLAN 40 → anything except PostgreSQL to VLAN 50 and return traffic to VLAN 30
+* VLAN 50 → anything except return traffic to VLAN 40
 
 ---
 
-## 🧠 Critical Concept
+## **Key Security Principle**
 
-> 🚨 “Just because routing is possible does NOT mean it should be allowed.”
-
----
-
-# **3. Key Concepts (Teaching Section)**
+> Each VLAN is its own trust boundary, and each SVI enforces the security policy for traffic entering from that VLAN.
 
 ---
 
-## 🔹 What is an SVI?
+# **3. The Big Learning Moment – How the Packets Actually Move**
 
-An SVI is a virtual interface that:
+Before you configure the ACLs, study this sequence carefully.
 
-* represents a VLAN
-* allows routing between VLANs
+This is the behavior your switch will enforce.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Proxy Server as Proxy Server (VLAN 30)
+    participant SW as L3 Switch (CORE-SW)
+    participant Web as WebApp (VLAN 40)
+    participant DB as Database (VLAN 50)
+
+    Note over Proxy Server, DB: Proxy Server initiates Web Connection
+    Proxy Server->>SW: TCP SYN (Dest Port 80/443)
+    Note right of SW: VLAN30-IN Check: PERMIT (Port 80/443)
+    SW->>Web: TCP SYN (Routed to VLAN 40)
+    
+    Web->>SW: TCP SYN/ACK (Return Traffic)
+    Note left of SW: VLAN40-IN Check: PERMIT (Established)
+    SW->>Proxy Server: TCP SYN/ACK (Routed to VLAN 30)
+    
+    Proxy Server->>SW: TCP ACK
+    Note right of SW: VLAN30-IN Check: PERMIT (Port 80/443)
+    SW->>Web: TCP ACK (Connection Established)
+
+    Note over Proxy Server, DB: WebApp initiates DB Connection
+    Web->>SW: TCP SYN (Dest Port 5432)
+    Note right of SW: VLAN40-IN Check: PERMIT (Port 5432)
+    SW->>DB: TCP SYN (Routed to VLAN 50)
+
+    DB->>SW: TCP SYN/ACK (Return Traffic)
+    Note left of SW: VLAN50-IN Check: PERMIT (Established)
+    SW->>Web: TCP SYN/ACK (Routed to VLAN 40)
+
+    Web->>SW: TCP ACK
+    Note right of SW: VLAN40-IN Check: PERMIT (Port 5432)
+    SW->>DB: TCP ACK (Connection Established)
+```
 
 ---
 
-### Example:
+## **Why This Diagram Matters**
+
+This diagram shows three huge ideas:
+
+### **1. The switch is enforcing policy at every routed hop**
+
+Every time traffic enters an SVI, the ACL is checked.
+
+### **2. The first packet of a session must match an explicit permit**
+
+For example:
+
+* Proxy → Web must match port 80 or 443
+* Web → DB must match port 5432
+
+### **3. Return traffic is not “magic”**
+
+Return traffic only works because of the `established` rule on the receiving VLAN ACL.
+
+This is the moment students usually realize:
+
+> “Oh — the return traffic is being allowed because the packet has the ACK bit set, not because the switch is truly stateful.”
+
+That is the magic moment.
+
+---
+
+# **4. Key Concepts (Teaching Section)**
+
+## **What is an SVI?**
+
+An SVI, or **Switch Virtual Interface**, is a Layer 3 interface assigned to a VLAN. It gives that VLAN:
+
+* an IP address
+* default gateway functionality
+* a point where ACLs can be applied
+
+Example:
 
 ```cisco
 interface vlan 40
@@ -100,40 +157,77 @@ interface vlan 40
 
 ---
 
-## 🔹 Inter-VLAN Routing
+## **What is Inter-VLAN Routing?**
 
-* traffic between VLANs is routed via SVIs
-* this is where we enforce ACLs
+When one VLAN needs to communicate with another VLAN, the Layer 3 switch routes the packet between the SVIs.
 
----
+Without ACLs:
 
-## 🔹 ACL Placement (CRITICAL)
+* everything routable is allowed
 
-ACLs are applied:
+With ACLs:
 
-👉 **on the SVI interface**
-
-👉 **inbound direction (best practice)**
+* only explicitly permitted traffic is allowed
 
 ---
 
-# **4. Network Reference**
+## **Why Inbound ACLs on Each SVI?**
 
-| Device      | IP           |
-| ----------- | ------------ |
-| Core VLAN30 | 192.168.30.2 |
-| Core VLAN40 | 192.168.40.1 |
-| Core VLAN50 | 192.168.50.1 |
-| Web Server  | 192.168.40.2 |
-| DB Server   | 192.168.50.2 |
+We apply ACLs **inbound** on each SVI because we want each VLAN to control what traffic is allowed to leave that VLAN and be routed elsewhere.
 
----
+That means:
 
-# **5. Step-by-Step Configuration**
+* `VLAN30-IN` filters traffic coming from VLAN 30
+* `VLAN40-IN` filters traffic coming from VLAN 40
+* `VLAN50-IN` filters traffic coming from VLAN 50
 
 ---
 
-## 🔧 Step 1 – Access Switch
+## **What Does `established` Mean?**
+
+Cisco ACLs are not fully stateful like pfSense, but the `established` keyword helps allow TCP return traffic.
+
+It matches packets that have:
+
+* ACK or RST set
+
+This means:
+
+* new outbound connections still need an explicit permit
+* return packets for an existing TCP session can be allowed back
+
+---
+
+## **Why This Is Not Full Stateful Inspection**
+
+A true stateful firewall tracks:
+
+* session state
+* sequence behavior
+* protocol awareness
+
+The `established` keyword is simpler. It is useful for teaching and works well for this project, but students should know:
+
+> it is a stateless approximation of return traffic handling, not a full firewall state table
+
+---
+
+# **5. Network Reference**
+
+| Device              | Network | IP           |
+| ------------------- | ------- | ------------ |
+| Proxy Server        | VLAN 30 | 192.168.30.x |
+| CORE-SW SVI VLAN 30 | VLAN 30 | 192.168.30.2 |
+| WebApp              | VLAN 40 | 192.168.40.2 |
+| CORE-SW SVI VLAN 40 | VLAN 40 | 192.168.40.1 |
+| Database            | VLAN 50 | 192.168.50.2 |
+| CORE-SW SVI VLAN 50 | VLAN 50 | 192.168.50.1 |
+
+---
+
+# **6. Step-by-Step Configuration**
+
+## **Step 1 – Access the Switch**
 
 ```cisco
 enable
@@ -143,11 +237,11 @@ hostname CORE-SW
 
 ---
 
-## 🔧 Step 2 – Create VLANs
+## **Step 2 – Create the VLANs**
 
 ```cisco
 vlan 30
- name APP_NET
+ name PROXY_NET
 
 vlan 40
  name WEB_NET
@@ -158,7 +252,7 @@ vlan 50
 
 ---
 
-## 🔧 Step 3 – Assign Ports**
+## **Step 3 – Assign Access Ports**
 
 ```cisco
 interface g0/0
@@ -176,25 +270,25 @@ interface g0/2
 
 ---
 
-## 🔧 Step 4 – Configure SVIs
+## **Step 4 – Configure the SVIs**
 
 ```cisco
-interface vlan 30
+interface Vlan30
  ip address 192.168.30.2 255.255.255.0
  no shutdown
 
-interface vlan 40
+interface Vlan40
  ip address 192.168.40.1 255.255.255.0
  no shutdown
 
-interface vlan 50
+interface Vlan50
  ip address 192.168.50.1 255.255.255.0
  no shutdown
 ```
 
 ---
 
-## 🔧 Step 5 – Enable Routing
+## **Step 5 – Enable Layer 3 Routing**
 
 ```cisco
 ip routing
@@ -202,254 +296,365 @@ ip routing
 
 ---
 
-# **6. Configure ACLs (Segmentation Enforcement)**
+# **7. Configure the ACLs**
+
+This is the heart of the phase.
 
 ---
 
-## 🔥 ACL 1 – VLAN 30 → VLAN 40 (Web Access Only)
+## **ACL 1 – VLAN30-IN**
+
+This ACL controls traffic initiated by the proxy tier.
+
+It should allow:
+
+* HTTP to VLAN 40
+* HTTPS to VLAN 40
+
+It should block:
+
+* everything else routed from VLAN 30
 
 ```cisco
-ip access-list extended VLAN30-FILTER
-
+ip access-list extended VLAN30-IN
+ remark Allow users to initiate HTTP to web/app
  permit tcp 192.168.30.0 0.0.0.255 192.168.40.0 0.0.0.255 eq 80
+ remark Allow users to initiate HTTPS to web/app
  permit tcp 192.168.30.0 0.0.0.255 192.168.40.0 0.0.0.255 eq 443
-
- deny ip any any
+ remark Block all other routed traffic from users
+ deny ip 192.168.30.0 0.0.0.255 any
 ```
 
----
-
-## 🔧 Apply ACL
+Apply it:
 
 ```cisco
-interface vlan 30
- ip access-group VLAN30-FILTER in
+interface Vlan30
+ ip access-group VLAN30-IN in
 ```
 
 ---
 
----
+## **ACL 2 – VLAN40-IN**
 
-## 🔥 ACL 2 – VLAN 40 → VLAN 50 (Postgres Only)
+This ACL controls traffic initiated by the web tier.
+
+It should allow:
+
+* return traffic back to VLAN 30 for established web sessions
+* PostgreSQL from VLAN 40 to VLAN 50 on TCP 5432
+
+It should block:
+
+* everything else routed from VLAN 40
 
 ```cisco
-ip access-list extended VLAN40-FILTER
-
- permit tcp 192.168.40.0 0.0.0.255 host 192.168.50.2 eq 5432
-
- deny ip any any
+ip access-list extended VLAN40-IN
+ remark Allow established return traffic from web/app back to users
+ permit tcp 192.168.40.0 0.0.0.255 192.168.30.0 0.0.0.255 established
+ remark Allow web/app to initiate PostgreSQL to database
+ permit tcp 192.168.40.0 0.0.0.255 192.168.50.0 0.0.0.255 eq 5432
+ remark Block all other routed traffic from web/app
+ deny ip 192.168.40.0 0.0.0.255 any
 ```
 
----
-
-## 🔧 Apply ACL
+Apply it:
 
 ```cisco
-interface vlan 40
- ip access-group VLAN40-FILTER in
+interface Vlan40
+ ip access-group VLAN40-IN in
 ```
 
 ---
 
-# **7. Testing Environment Setup**
+## **ACL 3 – VLAN50-IN**
+
+This ACL controls traffic initiated by the database tier.
+
+It should allow:
+
+* return traffic back to the web tier for established PostgreSQL sessions
+
+It should block:
+
+* everything else routed from VLAN 50
+
+```cisco
+ip access-list extended VLAN50-IN
+ remark Allow established return traffic from database back to web/app
+ permit tcp 192.168.50.0 0.0.0.255 192.168.40.0 0.0.0.255 established
+ remark Block all other routed traffic from database
+ deny ip 192.168.50.0 0.0.0.255 any
+```
+
+Apply it:
+
+```cisco
+interface Vlan50
+ ip access-group VLAN50-IN in
+```
 
 ---
 
-## 🧪 Containers Used
+# **8. Save the Configuration**
 
-| Tool           | Purpose              |
-| -------------- | -------------------- |
-| pgAdmin        | Test DB connectivity |
-| debian-iptools | Network testing      |
-
----
+```cisco
+end
+copy running-config startup-config
+```
 
 ---
 
-# **8. Testing – Debian IP Tools**
+# **9. Testing Environment Setup**
+
+Use the following tools:
+
+| Tool            | Purpose                                    |
+| --------------- | ------------------------------------------ |
+| Debian IP Tools | Test HTTP, TCP ports, scans                |
+| pgAdmin         | Confirm database access from approved path |
+
+Recommended placement:
+
+* Debian IP Tools on VLAN 30 for user/proxy-side testing
+* pgAdmin on VLAN 40 for approved DB testing
 
 ---
 
-## 🔧 Test 1 – Web Access
+# **10. Validation Testing**
+
+## **Test 1 – VLAN 30 to Web on HTTP**
+
+From a Debian IP Tools container on VLAN 30:
 
 ```bash
 curl http://192.168.40.2
 ```
 
-✅ Should work from VLAN 30
+Expected:
+
+* success
+
+Reason:
+
+* `VLAN30-IN` permits TCP 80 to VLAN 40
 
 ---
 
-## 🔧 Test 2 – DB Access (Should FAIL)
+## **Test 2 – VLAN 30 to Web on HTTPS**
+
+```bash
+curl -k https://192.168.40.2
+```
+
+Expected:
+
+* success, if HTTPS is configured on the web service
+
+Reason:
+
+* `VLAN30-IN` permits TCP 443 to VLAN 40
+
+---
+
+## **Test 3 – VLAN 30 Directly to Database**
 
 ```bash
 nc -zv 192.168.50.2 5432
 ```
 
-❌ Should fail from VLAN 30
+Expected:
+
+* blocked
+
+Reason:
+
+* `VLAN30-IN` only allows 80/443 to VLAN 40, then denies everything else
 
 ---
 
----
+## **Test 4 – VLAN 40 to Database on PostgreSQL**
 
-# **9. Testing – pgAdmin (Database Access)**
-
----
-
-## 🔧 Step 1 – Connect pgAdmin container to VLAN 40
-
----
-
-## 🔧 Step 2 – Configure pgAdmin connection
-
-| Field | Value        |
-| ----- | ------------ |
-| Host  | 192.168.50.2 |
-| Port  | 5432         |
-
----
-
-## ✅ Expected Result
-
-* Connection SUCCESS from VLAN 40
-
----
-
-## ❌ Negative Test
-
-From VLAN 30:
-
-* DB access should FAIL
-
----
-
-# **10. Advanced Testing (Optional)**
-
----
-
-## 🔍 Port Scan
+From VLAN 40:
 
 ```bash
-nmap 192.168.50.2
+nc -zv 192.168.50.2 5432
 ```
 
 Expected:
 
-* only port 5432 visible (from VLAN 40)
-* none from VLAN 30
+* success
+
+Reason:
+
+* `VLAN40-IN` permits TCP 5432 to VLAN 50
 
 ---
 
----
-
-## 🔍 Packet Capture
+## **Test 5 – VLAN 40 to Database on Any Other Port**
 
 ```bash
-tcpdump -i eth0 port 5432
+nc -zv 192.168.50.2 22
 ```
 
-Observe allowed vs blocked traffic
+Expected:
+
+* blocked
+
+Reason:
+
+* `VLAN40-IN` denies all other routed traffic
 
 ---
 
+## **Test 6 – Database Initiating a New Connection Back to Web**
+
+From VLAN 50:
+
+```bash
+nc -zv 192.168.40.2 80
+```
+
+Expected:
+
+* blocked
+
+Reason:
+
+* `VLAN50-IN` only permits established return traffic, not new sessions
+
 ---
 
-# **11. Verification Commands (Switch)**
+## **Test 7 – pgAdmin Validation**
+
+From pgAdmin on VLAN 40, try connecting to:
+
+* Host: `192.168.50.2`
+* Port: `5432`
+
+Expected:
+
+* success
+
+This confirms:
+
+* the web/app tier can reach the database on the approved application port
+
+---
+
+# **11. Verification Commands**
+
+Run these on the switch:
 
 ```cisco
 show vlan brief
 show ip interface brief
 show access-lists
-show running-config
+show running-config | section ip access-list
+show running-config | section interface Vlan
 ```
 
----
+Students should look for:
 
-# **12. Troubleshooting**
-
----
-
-## ❌ No routing
-
-* forgot `ip routing`
+* VLANs created correctly
+* SVIs up/up
+* ACLs applied inbound to the correct interfaces
+* hit counts increasing on ACL entries during testing
 
 ---
 
-## ❌ All traffic blocked
+# **12. Troubleshooting Guide**
 
-* ACL too restrictive
-* rule order incorrect
+## **Problem: Nothing routes**
 
----
+Check:
 
-## ❌ DB unreachable from VLAN 40
-
-* wrong ACL destination
-* wrong IP
+* `ip routing` enabled
+* SVI interfaces are up
+* end devices have correct default gateways
 
 ---
 
-## ❌ Web unreachable
+## **Problem: Web access from VLAN 30 fails**
 
-* wrong VLAN assignment
+Check:
+
+* web server IP is correct
+* VLAN 30 client is using gateway `192.168.30.2`
+* ACL `VLAN30-IN` includes port 80/443
+* web service is actually listening
+
+---
+
+## **Problem: Database access from VLAN 40 fails**
+
+Check:
+
+* DB server IP is correct
+* port 5432 is listening
+* ACL `VLAN40-IN` includes 5432
+* pgAdmin or test client is actually on VLAN 40
+
+---
+
+## **Problem: Return traffic fails**
+
+Check:
+
+* `established` rules exist on VLAN 40 and VLAN 50
+* ACL applied inbound to the correct SVI
+* testing is TCP, not ICMP
+
+---
+
+## **Problem: Students think the switch is stateful**
+
+Clarify:
+
+* this is not full stateful inspection
+* `established` is only permitting return TCP traffic with ACK/RST
+* this is a Layer 3 ACL design, not a next-generation firewall
 
 ---
 
 # **13. Deliverables**
 
-* VLAN configuration screenshot
-* ACL configuration screenshot
-* pgAdmin successful connection
-* failed connection test evidence
-* short explanation:
+Students must submit:
 
-Explain:
+1. screenshot of VLAN configuration
+2. screenshot of SVI configuration
+3. screenshot of all three ACLs
+4. screenshot showing ACLs applied to VLAN 30, 40, and 50
+5. screenshot of successful web access from VLAN 30 to VLAN 40
+6. screenshot of blocked direct database access from VLAN 30
+7. screenshot of successful PostgreSQL access from VLAN 40
+8. screenshot of blocked unauthorized traffic from VLAN 50
+9. short explanation of:
 
-* VLAN segmentation
-* why DB is restricted
-* how ACL enforces security
+   * why `established` is required
+   * why VLAN 30 cannot directly access VLAN 50
+   * why VLAN 50 cannot initiate connections outward
 
 ---
 
 # **14. Reflection Questions**
 
-1. Why should the database not be directly accessible from VLAN 30?
-2. Why is only port 5432 allowed between web and DB?
-3. What would happen if we removed the ACL?
-4. Why are ACLs applied inbound on SVIs?
-5. How does this improve security compared to flat networks?
+1. Why do we apply ACLs inbound on each SVI instead of only on one interface?
+2. Why is `established` necessary for return traffic in this design?
+3. Why can VLAN 30 access the web application but not the database?
+4. Why is the database allowed to respond but not initiate new sessions?
+5. How does this design support a real layered application architecture?
 
 ---
 
 # **15. Assessment (Suggested)**
 
-| Criteria           | Marks |
-| ------------------ | ----- |
-| VLAN Setup         | 5     |
-| SVI Config         | 5     |
-| ACL Implementation | 10    |
-| Testing            | 5     |
-| Documentation      | 5     |
+| Criteria                        | Marks |
+| ------------------------------- | ----: |
+| VLAN and SVI configuration      |     5 |
+| ACL creation accuracy           |    10 |
+| ACL application to correct SVIs |     5 |
+| Validation and testing          |     5 |
+| Explanation and documentation   |     5 |
 
-**Total: 30**
+**Total: 30 Marks**
 
----
-
-# **16. Instructor Notes (Critical Teaching Moment)**
-
-This phase teaches:
-
-* **east-west traffic control**
-* **zero trust principles inside the network**
-* **segmentation enforcement**
-
----
-
-## Common Student Mistakes
-
-* applying ACL to wrong interface
-* using wrong subnet in ACL
-* forgetting implicit deny
-* misunderstanding traffic direction
-
----

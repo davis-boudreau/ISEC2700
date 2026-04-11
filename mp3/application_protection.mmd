@@ -1,0 +1,32 @@
+sequenceDiagram
+    autonumber
+    participant Proxy Server as Proxy Server (VLAN 30)
+    participant SW as L3 Switch (CORE-SW)
+    participant Web as WebApp (VLAN 40)
+    participant DB as Database (VLAN 50)
+
+    Note over Proxy Server, DB: Proxy Server initiates Web Connection
+    Proxy Server->>SW: TCP SYN (Dest Port 80/443)
+    Note right of SW: VLAN30-IN Check: PERMIT (Port 80/443)
+    SW->>Web: TCP SYN (Routed to VLAN 40)
+    
+    Web->>SW: TCP SYN/ACK (Return Traffic)
+    Note left of SW: VLAN40-IN Check: PERMIT (Established)
+    SW->>Proxy Server: TCP SYN/ACK (Routed to VLAN 30)
+    
+    Proxy Server->>SW: TCP ACK
+    Note right of SW: VLAN30-IN Check: PERMIT (Port 80/443)
+    SW->>Web: TCP ACK (Connection Established)
+
+    Note over Proxy Server, DB: WebApp initiates DB Connection
+    Web->>SW: TCP SYN (Dest Port 5432)
+    Note right of SW: VLAN40-IN Check: PERMIT (Port 5432)
+    SW->>DB: TCP SYN (Routed to VLAN 50)
+
+    DB->>SW: TCP SYN/ACK (Return Traffic)
+    Note left of SW: VLAN50-IN Check: PERMIT (Established)
+    SW->>Web: TCP SYN/ACK (Routed to VLAN 40)
+
+    Web->>SW: TCP ACK
+    Note right of SW: VLAN40-IN Check: PERMIT (Port 5432)
+    SW->>DB: TCP ACK (Connection Established)
