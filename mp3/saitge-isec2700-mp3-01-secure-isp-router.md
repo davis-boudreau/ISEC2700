@@ -2,12 +2,12 @@
 
 ## **Phase 01: Configure & Secure ISP Router (NAT + ACLs)**
 
-**Course:** ISEC2700 – Intro to Information Security Practices
-**Instructor:** Davis Boudreau
-**Type:** Mini-Project Phase
-**Mode:** Individual
-**Estimated Time:** 4–6 hours
-**Prerequisite:** MP03-00 (Topology Built & Connectivity Verified)
+**Course:** ISEC2700 – Intro to Information Security Practices<br>
+**Instructor:** Davis Boudreau<br>
+**Type:** Mini-Project Phase<br>
+**Mode:** Individual<br>
+**Estimated Time:** 1–2 hours<br>
+**Prerequisite:** MP03-00 (Topology Built & Connectivity Verified)<br>
 
 ---
 

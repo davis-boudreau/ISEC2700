@@ -7,7 +7,7 @@
 **Type:** Mini-Project (Phase 00 – Foundational Build)<br>
 **Weight:** (Suggested 5–10%)<br>
 **Mode:** Individual<br>
-**Estimated Time:** 3–6 hours<br>
+**Estimated Time:** 1–2 hours<br>
 **Due Date:** (Instructor Assigned)<br>
 
 ---
