@@ -2,12 +2,12 @@
 
 ## **Phase 02: Harden Edge Firewall (pfSense 2.8.1)**
 
-**Course:** ISEC2700 – Intro to Information Security Practices<br>
-**Instructor:** Davis Boudreau<br>
-**Type:** Mini-Project Phase<br>
-**Mode:** Individual<br>
-**Estimated Time:** 1–3 hours<br>
-**Prerequisite:** MP03-01 completed<br>
+**Course:** ISEC2700 – Intro to Information Security Practices
+**Instructor:** Davis Boudreau
+**Type:** Mini-Project Phase
+**Mode:** Individual
+**Estimated Time:** 4–6 hours
+**Prerequisite:** MP03-01 completed
 
 ---
 
@@ -17,8 +17,8 @@ In this phase, you will configure and harden the **Edge Firewall (pfSense 2.8.1)
 
 This firewall sits between:
 
-* **Router (untrusted edge)** → `192.168.10.0/24`
-* **DMZ network** → `192.168.20.0/24`
+* **Router (untrusted WAN)** → `192.168.10.0/24`
+* **DMZ network (trusted LAN)** → `192.168.20.0/24`
 
 ---
 
@@ -26,14 +26,12 @@ This firewall sits between:
 
 You will:
 
-* access and configure the **pfSense Web Admin GUI**
-* define **firewall rules**
+* access the **pfSense Web Admin GUI (LAN side only)**
+* understand **stateful firewall behavior**
+* configure **WAN firewall rules**
 * implement **default deny + explicit allow**
-* control traffic between:
-
-  * edge network
-  * DMZ
-* validate access using the **Chromium test browser**
+* correctly configure pfSense for a **lab environment**
+* validate traffic using test clients
 
 ---
 
@@ -43,10 +41,10 @@ You will:
 
 ## 🔐 Trust Zones
 
-| Zone       | Network         | Trust Level  |
-| ---------- | --------------- | ------------ |
-| WAN (Edge) | 192.168.10.0/24 | Untrusted    |
-| DMZ        | 192.168.20.0/24 | Semi-trusted |
+| Zone            | Network         | Trust Level     |
+| --------------- | --------------- | --------------- |
+| WAN (Untrusted) | 192.168.10.0/24 | External / Edge |
+| LAN (DMZ)       | 192.168.20.0/24 | Semi-trusted    |
 
 ---
 
@@ -54,11 +52,9 @@ You will:
 
 The firewall:
 
-* **blocks everything by default**
-* only allows:
-
-  * required traffic
-  * explicitly defined rules
+* blocks all traffic by default
+* allows only explicitly permitted traffic
+* tracks connections (stateful inspection)
 
 ---
 
@@ -68,98 +64,164 @@ The firewall:
 
 ---
 
-# **3. Firewall Concepts**
+# **3. Critical Lab Configuration (MUST DO FIRST)**
 
 ---
 
-## 🔹 Stateless vs Stateful Firewalls
+## ⚠️ **IMPORTANT: pfSense Default WAN Protections**
 
-| Type      | Behavior                             |
-| --------- | ------------------------------------ |
-| Stateless | Evaluates each packet individually   |
-| Stateful  | Tracks connections (pfSense default) |
+By default, pfSense enables:
 
----
-
-### ✅ pfSense is STATEFUL
-
-This means:
-
-* if you allow outbound traffic
-* return traffic is automatically allowed
+```text
+[✓] Block private networks (RFC1918)
+[✓] Block bogon networks
+```
 
 ---
 
-## 🔹 Rule Processing (CRITICAL)
+## 🚨 **Why This Breaks Your Lab**
 
-* Rules are evaluated **top-down**
-* First match wins
-* Default = **deny all**
+Your lab uses private IP ranges:
+
+* `192.168.x.x`
+* `172.16.x.x`
+
+pfSense assumes:
+
+> “Private IPs on WAN = invalid or spoofed”
+
+👉 Result: **ALL traffic is dropped**, even if rules are correct
 
 ---
 
-## 🔹 Interface-Based Rules (VERY IMPORTANT)
+## 🔧 **Step 1 – Disable These Settings**
 
-pfSense rules are applied:
+Navigate:
 
-👉 **on the interface where traffic ENTERS**
+```
+Interfaces → WAN
+```
+
+Uncheck:
+
+```
+[ ] Block private networks
+[ ] Block bogon networks
+```
+
+Click:
+
+* **Save**
+* **Apply Changes**
 
 ---
 
-### Example:
+## 🧠 Teaching Insight
 
-| Traffic   | Rule goes on  |
+| Environment            | Setting  |
+| ---------------------- | -------- |
+| Real Internet firewall | ENABLED  |
+| GNS3 lab environment   | DISABLED |
+
+---
+
+## 🧪 Quick Validation
+
+From a test host on WAN (optional later):
+
+```bash
+ping 192.168.20.1
+```
+
+Expected:
+
+* reachable (once rules are in place)
+
+---
+
+# **4. Firewall Concepts (Teaching Section)**
+
+---
+
+## 🔹 Stateful Firewall
+
+pfSense tracks connections:
+
+* outbound allowed → return traffic allowed automatically
+
+---
+
+## 🔹 Rule Processing
+
+* top-down evaluation
+* first match wins
+* implicit deny at the end
+
+---
+
+## 🔹 Interface-Based Rules
+
+Rules apply where traffic **enters**:
+
+| Traffic   | Rule Location |
 | --------- | ------------- |
-| WAN → DMZ | WAN interface |
-| DMZ → WAN | DMZ interface |
+| WAN → LAN | WAN interface |
+| LAN → WAN | LAN interface |
 
 ---
 
-# **4. Network Reference**
+# **5. Network Reference**
 
-| Interface | Name | IP           |
-| --------- | ---- | ------------ |
-| em0       | WAN  | 192.168.10.2 |
-| em1       | DMZ  | 192.168.20.1 |
-
----
-
-# **5. Initial Access to pfSense Web GUI**
+| Interface | Name      | IP           |
+| --------- | --------- | ------------ |
+| em0       | WAN       | 192.168.10.2 |
+| em1       | LAN (DMZ) | 192.168.20.1 |
 
 ---
 
-## 🔧 Step 1 – Connect Chromium to Switch2
+# **6. Access pfSense Web GUI (LAN Only)**
 
-Ensure Chromium is connected to:
+---
+
+## 🧠 **Important Concept**
+
+> 🔐 pfSense can only be managed from the **LAN (trusted side)**
+> ❌ WAN access is blocked by design
+
+---
+
+## 🔧 Step 2 – Connect Chromium to LAN
+
+Connect Chromium container to:
 
 ```
-Switch2 (192.168.10.0/24)
-```
-
----
-
-## 🔧 Step 2 – Assign DHCP or Static IP
-
-If needed:
-
-* IP: `192.168.10.X`
-* Gateway: `192.168.10.1`
-
----
-
-## 🔧 Step 3 – Open Web Browser
-
-Navigate to:
-
-```
-https://192.168.10.2
+Switch3 (192.168.20.0/24)
 ```
 
 ---
 
-## 🔐 Step 4 – Login
+## 🔧 Step 3 – Configure IP (if needed)
 
-Default credentials:
+```bash
+ip addr flush dev eth0
+ip addr add 192.168.20.10/24 dev eth0
+ip link set eth0 up
+ip route add default via 192.168.20.1
+```
+
+---
+
+## 🔧 Step 4 – Access Web GUI
+
+Open browser:
+
+```
+http://192.168.20.1
+```
+
+---
+
+## 🔐 Step 5 – Login
 
 | Field    | Value   |
 | -------- | ------- |
@@ -168,53 +230,32 @@ Default credentials:
 
 ---
 
-⚠️ Accept SSL warning (self-signed certificate)
+## ⚠️ Important
+
+You will NOT be able to access pfSense from:
+
+* WAN network (192.168.10.0/24)
+* external networks
+
+👉 This is intentional and correct
 
 ---
 
-# **6. Initial pfSense Setup (Wizard Overview)**
-
-Students should:
-
-* confirm hostname
-* confirm WAN interface
-* confirm LAN (DMZ) interface
-* skip advanced options for now
+# **7. Initial Hardening Tasks**
 
 ---
 
-# **7. Baseline Firewall Behavior**
+## 🔐 Task 1 – Change Admin Password
 
-By default:
+Navigate:
 
-* WAN = **block all inbound**
-* LAN/DMZ = **allow outbound**
-
----
-
-## 🧠 Important Insight
-
-Right now:
-
-* DMZ → Internet = allowed
-* WAN → DMZ = blocked
-
----
-
-# **8. Hardening Tasks**
-
----
-
-# 🔐 **Task 1 – Change Admin Password**
-
+```
 System → User Manager
-
-* change admin password
-* document securely
+```
 
 ---
 
-# 🔐 **Task 2 – Disable Ping from WAN**
+## 🔐 Task 2 – Review Default WAN Rules
 
 Navigate:
 
@@ -224,58 +265,63 @@ Firewall → Rules → WAN
 
 Ensure:
 
-* NO rule allows ICMP echo requests
+* no overly permissive rules exist
 
 ---
 
-# 🔐 **Task 3 – Allow HTTP/HTTPS to DMZ Proxy**
+# **8. Configure Required WAN Firewall Rules**
 
 ---
 
-## 🔧 Add Rule on WAN Interface
+## 🔥 Task 3 – Allow HTTP/HTTPS to Reverse Proxy
 
+---
+
+Navigate:
+
+```
 Firewall → Rules → WAN → Add
+```
 
 ---
 
 ### Rule 1 – HTTP
 
-| Field            | Value        |
-| ---------------- | ------------ |
-| Action           | Pass         |
-| Interface        | WAN          |
-| Protocol         | TCP          |
-| Source           | any          |
-| Destination      | 192.168.20.2 |
-| Destination Port | 80           |
+| Field       | Value        |
+| ----------- | ------------ |
+| Action      | Pass         |
+| Protocol    | TCP          |
+| Source      | any          |
+| Destination | 192.168.20.2 |
+| Port        | 80           |
 
 ---
 
 ### Rule 2 – HTTPS
 
-| Field            | Value        |
-| ---------------- | ------------ |
-| Action           | Pass         |
-| Interface        | WAN          |
-| Protocol         | TCP          |
-| Source           | any          |
-| Destination      | 192.168.20.2 |
-| Destination Port | 443          |
+| Field       | Value        |
+| ----------- | ------------ |
+| Action      | Pass         |
+| Protocol    | TCP          |
+| Source      | any          |
+| Destination | 192.168.20.2 |
+| Port        | 443          |
 
 ---
 
-## 🧠 Explain to Students
+## 🧠 Explanation
 
-These rules allow:
+Allows:
 
-* Internet users → Reverse Proxy ONLY
-* nothing else exposed
+* external users → reverse proxy only
 
 ---
 
-# 🔐 **Task 4 – Block Direct Access to Internal Networks**
+# **9. Block Direct Access to Internal Networks**
 
-Add rule:
+---
+
+## 🔥 Task 4 – Add Block Rule
 
 | Field       | Value           |
 | ----------- | --------------- |
@@ -285,45 +331,52 @@ Add rule:
 
 ---
 
----
+## 🧠 Purpose
 
-# 🔐 **Task 5 – Restrict DMZ Outbound Traffic (Basic Hardening)**
+Prevents:
 
-Go to:
-
-```
-Firewall → Rules → DMZ
-```
+* bypassing firewall layers
+* direct access to edge/internal systems
 
 ---
 
-## Allow only required outbound traffic
+# **10. Restrict LAN (DMZ) Outbound Traffic**
 
-### Rule 1 – Allow HTTP
+---
 
-* Destination: any
-* Port: 80
+## 🔥 Task 5 – Configure LAN Rules
 
-### Rule 2 – Allow HTTPS
+Navigate:
 
-* Destination: any
-* Port: 443
+```
+Firewall → Rules → LAN
+```
+
+---
+
+### Allow HTTP Out
+
+* Port 80
+
+### Allow HTTPS Out
+
+* Port 443
 
 ---
 
 ### Final Rule
 
-Block everything else
+* Block all other outbound traffic
 
 ---
 
 ## 🧠 Teaching Point
 
-> DMZ systems should NOT have unrestricted outbound access
+> DMZ systems should not have unrestricted outbound access
 
 ---
 
-# **9. Apply Changes**
+# **11. Apply Changes**
 
 Click:
 
@@ -333,13 +386,24 @@ Apply Changes
 
 ---
 
-# **10. Validation Testing**
+# **12. Validation Testing**
 
 ---
 
-## ✅ Test 1 – From Chromium
+## 🧪 Test Setup
 
-Test:
+Use two perspectives:
+
+| Client             | Network      | Purpose      |
+| ------------------ | ------------ | ------------ |
+| Chromium (LAN)     | 192.168.20.x | Admin access |
+| External test host | WAN side     | User access  |
+
+---
+
+## ✅ Test 1 – External Access
+
+From WAN-side test client:
 
 ```
 http://172.16.184.2XX
@@ -347,16 +411,14 @@ http://172.16.184.2XX
 
 Expected:
 
-* reaches proxy
+* reaches reverse proxy
 
 ---
 
-## ❌ Test 2 – Blocked Access
+## ❌ Test 2 – Unauthorized Access
 
-Try:
-
-```
-ssh 172.16.184.2XX
+```bash
+nc -zv 172.16.184.2XX 22
 ```
 
 Expected:
@@ -365,44 +427,49 @@ Expected:
 
 ---
 
-## ✅ Test 3 – DMZ Outbound
+## ✅ Test 3 – Logs
 
-From proxy (later phase):
-
-* should reach Internet on 80/443 only
-
----
-
-# **11. Logs and Monitoring**
-
----
-
-## 🔍 View Logs
+Navigate:
 
 ```
 Status → System Logs → Firewall
 ```
 
-Students should:
+Observe:
 
-* observe blocked traffic
-* observe allowed traffic
-
----
-
-## 🧠 Teaching Insight
-
-Logs = **evidence of security enforcement**
+* allowed HTTP/HTTPS
+* blocked traffic
 
 ---
 
-# **12. Troubleshooting**
+# **13. Verification Checklist**
+
+Students must confirm:
+
+* WAN private/bogon blocking disabled
+* WebGUI accessible from LAN only
+* HTTP/HTTPS allowed
+* no direct internal access
+* outbound restricted from DMZ
+* logs show enforcement
+
+---
+
+# **14. Troubleshooting**
+
+---
+
+## ❌ Nothing works
+
+👉 FIRST CHECK:
+
+* “Block private networks” disabled
 
 ---
 
 ## ❌ Cannot access Web GUI
 
-* wrong network
+* not on LAN
 * wrong IP
 * interface down
 
@@ -410,69 +477,73 @@ Logs = **evidence of security enforcement**
 
 ## ❌ HTTP not working
 
-* NAT missing (router issue)
-* firewall rule missing
-* wrong destination IP
+* NAT issue (router)
+* missing WAN rule
+* wrong destination
 
 ---
 
 ## ❌ Everything blocked
 
 * rule order incorrect
-* forgot “pass” rule
+* missing allow rules
 
 ---
 
-# **13. Deliverables**
+# **15. Deliverables**
 
-* Screenshot of firewall rules (WAN + DMZ)
-* Screenshot of Web GUI access
+Students must submit:
+
+* Screenshot of WAN interface settings
+* Screenshot showing private/bogon disabled
+* Screenshot of WAN rules
+* Screenshot of LAN rules
+* Screenshot of WebGUI access
 * Screenshot of successful HTTP test
 * Screenshot of firewall logs
-* Short explanation:
-
-Explain:
-
-* stateful firewall
-* why only ports 80/443 allowed
-* difference between router ACL and firewall rules
 
 ---
 
-# **14. Reflection Questions**
+# **16. Reflection Questions**
 
-1. Why is pfSense considered stateful?
-2. Why are rules applied on the interface where traffic enters?
-3. Why is the DMZ not fully trusted?
-4. What would happen if we allowed all outbound traffic from DMZ?
-5. How does this firewall improve security compared to router ACLs?
+1. Why can pfSense only be accessed from the LAN side?
+2. Why must “block private networks” be disabled in this lab?
+3. Why should it remain enabled in real environments?
+4. What is the difference between router ACL and firewall rules?
+5. Why is only HTTP/HTTPS allowed inbound?
+6. What risk exists if DMZ outbound is unrestricted?
 
 ---
 
-# **15. Assessment (Suggested)**
+# **17. Assessment (Suggested)**
 
-| Criteria           | Marks |
-| ------------------ | ----- |
-| Web GUI Access     | 5     |
-| Rule Configuration | 10    |
-| Security Hardening | 5     |
-| Testing            | 5     |
-| Documentation      | 5     |
+| Criteria                   | Marks |
+| -------------------------- | ----- |
+| WAN Config (critical step) | 5     |
+| Rule Configuration         | 10    |
+| Security Hardening         | 5     |
+| Testing                    | 5     |
+| Documentation              | 5     |
 
 **Total: 30**
 
 ---
 
-# **16. Instructor Notes**
+# **18. Instructor Notes**
 
-This is where students shift from:
+This phase introduces:
 
-* “network works” → “network is controlled”
+* stateful firewall logic
+* interface-based rule design
+* real-world firewall management practices
 
-Common confusion:
+---
 
-* rules direction (inbound vs outbound)
-* interface selection
-* NAT vs firewall responsibilities
+## ⚠️ Common Student Mistakes
+
+* forgetting to disable private network blocking
+* trying to access GUI from WAN
+* applying rules to wrong interface
+* misunderstanding rule order
 
 ---
